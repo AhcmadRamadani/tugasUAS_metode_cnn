@@ -1,0 +1,74 @@
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras import layers, models
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Dataset
+data = [
+    ("Vaksin COVID-19 bisa mengubah DNA manusia", 1),
+    ("Presiden mengumumkan kebijakan baru untuk ekonomi", 0),
+    ("Minum air lemon bisa menyembuhkan kanker", 1),
+    ("Kementerian Kesehatan merilis data terbaru pandemi", 0),
+    ("5G menyebabkan virus corona menyebar", 1),
+    ("Bencana alam terjadi di daerah Sulawesi", 0),
+    ("Orang tua harus memberi anak vitamin C untuk cegah COVID", 1),
+    ("Universitas membuka pendaftaran beasiswa", 0),
+    ("WHO menyarankan vaksinasi untuk lansia", 0),
+    ("Covid-19 hanyalah konspirasi elite global", 1),
+    ("BMKG perkirakan hujan lebat minggu ini", 0),
+    ("Bawang putih bisa menyembuhkan semua penyakit", 1),
+    ("Imigrasi meluncurkan layanan baru berbasis digital", 0),
+    ("Rokok herbal aman untuk kesehatan", 1),
+    ("Polisi tangkap pelaku penipuan online", 0),
+    ("Minyak kelapa bisa jadi obat utama COVID-19", 1),
+    ("Bank Indonesia naikkan suku bunga acuan", 0),
+    ("Suhu panas ekstrem disebabkan oleh HAARP", 1),
+    ("Bayi lahir berbicara langsung di rumah sakit", 1),
+    ("Kemenhub atur mudik 2025 dengan sistem zonasi", 0),
+]
+
+texts, labels = zip(*data)
+labels = np.array(labels)
+
+# Tokenisasi dan padding
+tokenizer = Tokenizer(num_words=1000, oov_token="<OOV>")
+tokenizer.fit_on_texts(texts)
+sequences = tokenizer.texts_to_sequences(texts)
+padded = pad_sequences(sequences, maxlen=20, padding='post')
+
+# Split data
+train_size = int(len(padded) * 0.8)
+x_train, x_test = padded[:train_size], padded[train_size:]
+y_train, y_test = labels[:train_size], labels[train_size:]
+
+# Model CNN
+model = models.Sequential([
+    layers.Embedding(input_dim=1000, output_dim=16, input_length=20),
+    layers.Conv1D(32, 3, activation='relu'),
+    layers.GlobalMaxPooling1D(),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Train
+history = model.fit(x_train, y_train, epochs=10, validation_data=(x_test, y_test))
+
+# Plot hasil
+plt.plot(history.history['accuracy'], label='train acc')
+plt.plot(history.history['val_accuracy'], label='val acc')
+plt.xlabel("Epoch")
+plt.ylabel("Akurasi")
+plt.legend()
+plt.title("Akurasi Pelatihan dan Validasi")
+plt.show()
+
+# Prediksi
+sample = ["Pemerintah menyarankan vaksin booster ke-3"]
+sample_seq = tokenizer.texts_to_sequences(sample)
+sample_pad = pad_sequences(sample_seq, maxlen=20, padding='post')
+pred = model.predict(sample_pad)
+print("Prediksi hoaks" if pred[0][0] > 0.5 else "Prediksi asli")
